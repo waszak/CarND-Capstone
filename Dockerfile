@@ -17,9 +17,12 @@ RUN apt-get upgrade -y
 
 # install python packages
 RUN apt-get install -y python-pip
-RUN pip install --upgrade pip
+RUN pip install --no-cache-dir --upgrade pip==19.3.1
+RUN pip install --no-cache-dir --upgrade pip
+
+ 
 COPY requirements.txt ./requirements.txt
-RUN pip install -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt
 
 # install required ros dependencies
 RUN apt-get install -y ros-$ROS_DISTRO-cv-bridge
