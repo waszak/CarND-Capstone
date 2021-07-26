@@ -4,3 +4,5 @@ build
 devel
 
 profile.tmp
+
+ros/traffic_light_bag_file
