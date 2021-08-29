@@ -10,6 +10,7 @@ from light_classification.tl_classifier import TLClassifier
 import tf
 import cv2
 import yaml
+from scipy.spatial import KDTree
 
 STATE_COUNT_THRESHOLD = 3
 
@@ -19,6 +20,8 @@ class TLDetector(object):
 
         self.pose = None
         self.waypoints = None
+        self.waypoints_2d = None
+        self.waypoint_tree = None
         self.camera_image = None
         self.lights = []
 
@@ -56,6 +59,9 @@ class TLDetector(object):
 
     def waypoints_cb(self, waypoints):
         self.waypoints = waypoints
+        if not self.waypoints_2d:
+            self.waypoints_2d = [[waypoint.pose.pose.position.x, waypoint.pose.pose.position.y] for waypoint in waypoints.waypoints]
+            self.waypoint_tree = KDTree(self.waypoints_2d)
 
     def traffic_cb(self, msg):
         self.lights = msg.lights
@@ -91,17 +97,20 @@ class TLDetector(object):
         self.state_count += 1
 
     def get_closest_waypoint(self, pose):
-        """Identifies the closest path waypoint to the given position
-            https://en.wikipedia.org/wiki/Closest_pair_of_points_problem
-        Args:
-            pose (Pose): position to match a waypoint to
-
-        Returns:
-            int: index of the closest waypoint in self.waypoints
-
-        """
-        #TODO implement
-        return 0
+        x = pose.pose.position.x
+        y = pose.pose.position.y
+        closest_idx = self.waypoint_tree.query([x,y], 1)[1]
+        
+        closest_vect = np.array(self.waypoints_2d[closest_idx])
+        prev_vect = np.array(self.waypoints_2d[closest_idx - 1])
+        pose_vect = np.array([x,y])
+        
+        val = np.dot(closest_vect - prev_vect, pose_vect - closest_vect)
+        if val > 0:
+           closest_idx = (closest_idx + 1) % len(self.waypoints_2d)
+        
+        return closest_idx
+        
 
     def get_light_state(self, light):
         """Determines the current color of the traffic light
@@ -143,7 +152,10 @@ class TLDetector(object):
         if light:
             state = self.get_light_state(light)
             return light_wp, state
+            
         self.waypoints = None
+        self.waypoints_2d = None
+        self.waypoint_tree = None
         return -1, TrafficLight.UNKNOWN
 
 if __name__ == '__main__':
